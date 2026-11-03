@@ -1,60 +1,257 @@
-<div>Teachable Machine Image Model</div>
-<button type="button" onclick="init()">Start</button>
-<div id="webcam-container"></div>
-<div id="label-container"></div>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-<script type="text/javascript">
-  // More API functions here:
-  // https://github.com/googlecreativelab/teachablemachine-community/tree/master/libraries/image
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f4f7f1" />
+    <title>찾아보기 | 싯다르타와 초록 모자</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #20342b;
+        --muted: #78867d;
+        --green: #2f704d;
+        --green-dark: #214f39;
+        --mint: #e4eee5;
+        --paper: #fbfcf8;
+        --line: #e2e8df;
+        --sun: #e8b64e;
+        --coral: #d77a62;
+        font-family: "Noto Sans KR", sans-serif;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+      }
 
-  // the link to your model provided by Teachable Machine export panel
-  const URL = "./my_model/";
+      * { box-sizing: border-box; }
+      body { margin: 0; color: var(--ink); background: var(--paper); }
+      button, a { font: inherit; }
+      a { color: inherit; }
+      .page { width: min(1120px, calc(100% - 48px)); margin: 0 auto; }
+      .topbar { height: 76px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+      .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 15px; font-weight: 700; letter-spacing: 0; }
+      .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: white; background: var(--green); font-family: "DM Serif Display", serif; font-size: 18px; }
+      .top-note { color: var(--muted); font-size: 12px; }
+      main { padding: 46px 0 64px; }
+      .intro { display: flex; justify-content: space-between; align-items: end; gap: 28px; margin-bottom: 28px; }
+      .eyebrow { margin: 0 0 10px; color: var(--green); font-size: 11px; font-weight: 700; letter-spacing: 1.4px; }
+      h1 { margin: 0; font-size: 38px; line-height: 1.25; letter-spacing: 0; }
+      .intro-copy { max-width: 325px; margin: 0 0 4px; color: var(--muted); font-size: 14px; line-height: 1.8; }
+      .workspace { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(380px, .92fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: white; box-shadow: 0 18px 50px #2943310b; }
+      .camera-panel { min-width: 0; padding: 24px; background: #f0f5ef; }
+      .panel-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+      .panel-heading h2 { margin: 0; font-size: 14px; font-weight: 700; }
+      .live-indicator { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
+      .live-indicator::before { width: 7px; height: 7px; content: ""; border-radius: 50%; background: #a7b2aa; }
+      .live-indicator.is-live { color: var(--green); }
+      .live-indicator.is-live::before { background: #4a9b69; box-shadow: 0 0 0 4px #4a9b691c; }
+      .camera-view { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 5px; background: #dfe9df; }
+      .camera-view canvas { width: 100% !important; height: 100% !important; object-fit: cover; }
+      .camera-placeholder { position: absolute; display: grid; justify-items: center; gap: 12px; color: #788d7c; text-align: center; }
+      .camera-placeholder svg { width: 44px; height: 44px; }
+      .camera-placeholder p { margin: 0; font-size: 12px; }
+      .camera-view.has-camera .camera-placeholder { display: none; }
+      .camera-controls { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+      .camera-button { min-height: 43px; padding: 0 18px; border: 0; border-radius: 4px; color: white; background: var(--green); cursor: pointer; font-size: 13px; font-weight: 600; transition: background .2s, transform .2s; }
+      .camera-button:hover { background: var(--green-dark); transform: translateY(-1px); }
+      .camera-button:focus-visible, a:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; }
+      .camera-hint { color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .camera-error { min-height: 18px; margin: 10px 0 0; color: #a54436; font-size: 12px; }
+      .results-panel { padding: 24px; }
+      .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+      .results-header h2 { margin: 0; font-size: 14px; }
+      .result-count { color: var(--muted); font-size: 11px; }
+      .object-list { display: grid; gap: 12px; }
+      .object-card { display: grid; grid-template-columns: 102px minmax(0, 1fr); min-height: 138px; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; background: #fff; transition: border-color .2s, box-shadow .2s; }
+      .object-card.is-detected { border-color: #69a27b; box-shadow: 0 0 0 2px #69a27b1c; }
+      .object-art { position: relative; display: grid; place-items: center; min-height: 138px; overflow: hidden; background: #e7eee6; }
+      .book-art { padding: 14px; background: #e4e9dc; }
+      .book-art img { display: block; width: 72px; height: 108px; object-fit: cover; box-shadow: 4px 5px 12px #24362835; }
+      .hat-art { background: #e8efe7; }
+      .hat-art img { width: 128px; height: 112px; object-fit: cover; filter: sepia(1) saturate(5) hue-rotate(65deg) brightness(.91) contrast(1.04); mix-blend-mode: multiply; }
+      .object-info { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 14px; }
+      .object-type { margin: 0 0 4px; color: var(--green); font-size: 9px; font-weight: 700; letter-spacing: 1px; }
+      .object-info h3 { margin: 0; font-size: 15px; }
+      .object-subtitle { margin: 4px 0 11px; color: var(--muted); font-size: 11px; }
+      .score-row { display: flex; align-items: center; gap: 8px; }
+      .score-track { height: 4px; flex: 1; overflow: hidden; border-radius: 4px; background: #edf0eb; }
+      .score-fill { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--green); transition: width .25s ease; }
+      .score-value { min-width: 34px; color: var(--muted); text-align: right; font-size: 10px; font-variant-numeric: tabular-nums; }
+      .object-link { display: inline-flex; align-self: flex-start; align-items: center; gap: 4px; margin-top: 8px; color: var(--green-dark); text-decoration: none; font-size: 10px; font-weight: 600; }
+      .object-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+      .footnote { margin: 13px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+      footer { display: flex; justify-content: space-between; gap: 16px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+      footer a { text-decoration-color: #aeb8af; text-underline-offset: 3px; }
+      @media (max-width: 800px) {
+        .intro { align-items: start; flex-direction: column; gap: 10px; }
+        .intro-copy { max-width: 440px; }
+        .workspace { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 520px) {
+        .page { width: min(100% - 28px, 440px); }
+        h1 { font-size: 30px; }
+        .topbar { height: 64px; }
+        .top-note { max-width: 120px; text-align: right; }
+        main { padding: 32px 0 40px; }
+        .camera-panel, .results-panel { padding: 17px; }
+        .object-card { grid-template-columns: 88px minmax(0, 1fr); min-height: 132px; }
+        .object-art { min-height: 132px; }
+        .book-art img { width: 66px; height: 100px; }
+        .hat-art img { width: 110px; height: 102px; }
+        footer { flex-direction: column; gap: 7px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <a class="brand" href="#top" aria-label="찾아보기 홈"><span class="brand-mark">f</span> 찾아보기</a>
+        <span class="top-note">작은 사물을 천천히 발견하는 시간</span>
+      </header>
+      <main id="top">
+        <section class="intro" aria-labelledby="page-title">
+          <div>
+            <p class="eyebrow">OBJECT FINDER / 01</p>
+            <h1 id="page-title">오늘의 두 가지 발견</h1>
+          </div>
+          <p class="intro-copy">마음을 고요하게 하는 책 한 권, 산뜻한 초록 모자 하나. 카메라에 비춰 닮은 사물을 찾아보세요.</p>
+        </section>
 
-  let model, webcam, labelContainer, maxPredictions;
+        <section class="workspace" aria-label="사물 찾기">
+          <div class="camera-panel">
+            <div class="panel-heading">
+              <h2>카메라</h2>
+              <span class="live-indicator" id="live-indicator">대기 중</span>
+            </div>
+            <div class="camera-view" id="camera-view">
+              <div class="camera-placeholder" aria-hidden="true">
+                <svg viewBox="0 0 48 48" fill="none"><rect x="5" y="12" width="38" height="27" rx="4" stroke="currentColor" stroke-width="1.7"/><path d="m17 12 2.5-4h9L31 12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="24" cy="25.5" r="7" stroke="currentColor" stroke-width="1.7"/></svg>
+                <p>카메라를 켜면 여기에 화면이 보여요</p>
+              </div>
+            </div>
+            <div class="camera-controls">
+              <button class="camera-button" id="camera-button" type="button">카메라 시작</button>
+              <span class="camera-hint">물체를 화면 가운데에 놓아주세요</span>
+            </div>
+            <p class="camera-error" id="camera-error" role="status" aria-live="polite"></p>
+          </div>
 
-  // Load the image model and setup the webcam
-  async function init() {
-    const modelURL = URL + "model.json";
-    const metadataURL = URL + "metadata.json";
+          <div class="results-panel">
+            <div class="results-header">
+              <h2>찾을 사물</h2>
+              <span class="result-count">2 OBJECTS</span>
+            </div>
+            <div class="object-list">
+              <article class="object-card" data-class="싯다르타-책">
+                <div class="object-art book-art">
+                  <img src="https://covers.openlibrary.org/b/isbn/9780553208849-L.jpg?default=false" alt="헤르만 헤세 싯다르타 책 표지" />
+                </div>
+                <div class="object-info">
+                  <p class="object-type">CALM / 읽을거리</p>
+                  <h3>싯다르타</h3>
+                  <p class="object-subtitle">헤르만 헤세 · 책</p>
+                  <div class="score-row"><span class="score-track"><span class="score-fill"></span></span><span class="score-value">--%</span></div>
+                  <a class="object-link" href="https://openlibrary.org/isbn/9780553208849" target="_blank" rel="noreferrer">책 정보 보기 <span aria-hidden="true">↗</span></a>
+                </div>
+              </article>
+              <article class="object-card" data-class="초록색-모자">
+                <div class="object-art hat-art">
+                  <img src="https://images.unsplash.com/photo-1521369909029-2afed882baee?auto=format&amp;fit=crop&amp;w=500&amp;q=85" alt="초록색으로 톤을 맞춘 야구 모자 사진" />
+                </div>
+                <div class="object-info">
+                  <p class="object-type">GREEN / 액세서리</p>
+                  <h3>초록 모자</h3>
+                  <p class="object-subtitle">산뜻한 포인트 · 모자</p>
+                  <div class="score-row"><span class="score-track"><span class="score-fill"></span></span><span class="score-value">--%</span></div>
+                  <a class="object-link" href="https://search.shopping.naver.com/search/all?query=%EC%B4%88%EB%A1%9D%20%EB%AA%A8%EC%9E%90" target="_blank" rel="noreferrer">초록 모자 찾아보기 <span aria-hidden="true">↗</span></a>
+                </div>
+              </article>
+            </div>
+            <p class="footnote">이미지 출처: <a href="https://openlibrary.org/isbn/9780553208849" target="_blank" rel="noreferrer">Open Library</a> · <a href="https://unsplash.com/photos/" target="_blank" rel="noreferrer">Unsplash</a>. 모자 이미지는 색상 참고용으로 녹색 톤을 적용했습니다.</p>
+          </div>
+        </section>
+      </main>
+      <footer>
+        <span>Teachable Machine 이미지 분류 모델</span>
+        <a href="https://teachablemachine.withgoogle.com/" target="_blank" rel="noreferrer">모델 정보 ↗</a>
+      </footer>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <script>
+      const MODEL_URL = "./my_model/";
+      const cameraButton = document.getElementById("camera-button");
+      const cameraView = document.getElementById("camera-view");
+      const cameraError = document.getElementById("camera-error");
+      const liveIndicator = document.getElementById("live-indicator");
+      const cards = [...document.querySelectorAll(".object-card")];
+      let model;
+      let webcam;
+      let isRunning = false;
 
-    // load the model and metadata
-    // Refer to tmImage.loadFromFiles() in the API to support files from a file picker
-    // or files from your local hard drive
-    // Note: the pose library adds "tmImage" object to your window (window.tmImage)
-    model = await tmImage.load(modelURL, metadataURL);
-    maxPredictions = model.getTotalClasses();
+      async function startCamera() {
+        cameraButton.disabled = true;
+        cameraError.textContent = "";
+        cameraButton.textContent = "준비 중...";
+        try {
+          model = model || await tmImage.load(`${MODEL_URL}model.json`, `${MODEL_URL}metadata.json`);
+          webcam = new tmImage.Webcam(500, 375, true);
+          await webcam.setup();
+          await webcam.play();
+          cameraView.appendChild(webcam.canvas);
+          cameraView.classList.add("has-camera");
+          cameraButton.textContent = "카메라 중지";
+          liveIndicator.textContent = "분류 중";
+          liveIndicator.classList.add("is-live");
+          isRunning = true;
+          cameraButton.disabled = false;
+          requestAnimationFrame(classifyFrame);
+        } catch (error) {
+          cameraButton.textContent = "카메라 시작";
+          cameraButton.disabled = false;
+          cameraError.textContent = "카메라를 시작할 수 없어요. 권한을 허용하고 HTTPS 또는 localhost에서 열어주세요.";
+          liveIndicator.textContent = "연결 실패";
+          console.error(error);
+        }
+      }
 
-    // Convenience function to setup a webcam
-    const flip = true; // whether to flip the webcam
-    webcam = new tmImage.Webcam(500, 500, flip); // width, height, flip
-    await webcam.setup(); // request access to the webcam
-    await webcam.play();
-    window.requestAnimationFrame(loop);
+      function stopCamera() {
+        isRunning = false;
+        if (webcam) {
+          webcam.stop();
+          webcam.canvas.remove();
+          webcam = null;
+        }
+        cameraView.classList.remove("has-camera");
+        cameraButton.textContent = "카메라 시작";
+        liveIndicator.textContent = "대기 중";
+        liveIndicator.classList.remove("is-live");
+      }
 
-    // append elements to the DOM
-    document.getElementById("webcam-container").appendChild(webcam.canvas);
-    labelContainer = document.getElementById("label-container");
-    for (let i = 0; i < maxPredictions; i++) {
-      // and class labels
-      labelContainer.appendChild(document.createElement("div"));
-    }
-  }
+      async function classifyFrame() {
+        if (!isRunning || !webcam) return;
+        webcam.update();
+        const predictions = await model.predict(webcam.canvas);
+        for (const card of cards) {
+          const result = predictions.find((prediction) => prediction.className === card.dataset.class);
+          if (!result) continue;
+          const percent = Math.round(result.probability * 100);
+          card.querySelector(".score-fill").style.width = `${percent}%`;
+          card.querySelector(".score-value").textContent = `${percent}%`;
+          card.classList.toggle("is-detected", percent >= 60);
+        }
+        requestAnimationFrame(classifyFrame);
+      }
 
-  async function loop() {
-    webcam.update(); // update the webcam frame
-    await predict();
-    window.requestAnimationFrame(loop);
-  }
-
-  // run the webcam image through the image model
-  async function predict() {
-    // predict can take in an image, video or canvas html element
-    const prediction = await model.predict(webcam.canvas);
-    for (let i = 0; i < maxPredictions; i++) {
-      const classPrediction =
-        prediction[i].className + ": " + prediction[i].probability.toFixed(2);
-      labelContainer.childNodes[i].innerHTML = classPrediction;
-    }
-  }
-</script>
+      cameraButton.addEventListener("click", () => {
+        if (isRunning) stopCamera();
+        else startCamera();
+      });
+    </script>
+  </body>
+</html>
